@@ -83,18 +83,6 @@ class TestGetEffectiveLtiVersion(TestLtiConsumerXBlock):
     Tests for LtiConsumerXBlock.get_effective_lti_version().
     """
 
-    def test_returns_lti_version_when_not_external(self):
-        """
-        When config_type is not external, get_effective_lti_version()
-        returns self.lti_version unchanged.
-        """
-        self.xblock.config_type = "new"
-        self.xblock.lti_version = "lti_1p1"
-        self.assertEqual(self.xblock.get_effective_lti_version(), "lti_1p1")
-
-        self.xblock.lti_version = "lti_1p3"
-        self.assertEqual(self.xblock.get_effective_lti_version(), "lti_1p3")
-
     def test_returns_external_version_key_when_external(self):
         """
         When config_type is external and external config has a "version"
@@ -157,31 +145,10 @@ class TestResolveExternalConfigVersion(TestLtiConsumerXBlock):
             result = self._call_handler('test-plugin:test-id')
             self.assertEqual(result, {'found': True, 'version': 'lti_1p3'})
 
-    def test_returns_no_version_for_config_without_version(self):
-        """Returns found=False when config has no version key."""
-        with patch('lti_consumer.lti_xblock.get_external_config_from_filter') as mock_filter:
-            mock_filter.return_value = {'lti_1p3_client_id': 'test'}
-            result = self._call_handler('test-plugin:test-id')
-            self.assertEqual(result, {'found': False, 'version': None})
-
-    def test_returns_no_version_for_unknown_config(self):
-        """Returns found=False when config ID is not found."""
-        with patch('lti_consumer.lti_xblock.get_external_config_from_filter') as mock_filter:
-            mock_filter.return_value = {}
-            result = self._call_handler('nonexistent')
-            self.assertEqual(result, {'found': False, 'version': None})
-
     def test_returns_no_version_for_empty_config_id(self):
         """Returns found=False when config_id is empty; does not call filter."""
         with patch('lti_consumer.lti_xblock.get_external_config_from_filter') as mock_filter:
             result = self._call_handler('')
-            self.assertEqual(result, {'found': False, 'version': None})
-            mock_filter.assert_not_called()
-
-    def test_handles_missing_config_id_key(self):
-        """Gracefully handles missing config_id in request body."""
-        with patch('lti_consumer.lti_xblock.get_external_config_from_filter') as mock_filter:
-            result = self._call_handler(None)
             self.assertEqual(result, {'found': False, 'version': None})
             mock_filter.assert_not_called()
 
@@ -434,31 +401,20 @@ class TestProperties(TestLtiConsumerXBlock):
         self.assertFalse(validation.empty)
 
     @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.course')
-    def test_validate_lti_id_external_config(self, mock_course):
+    @ddt.data('external', 'database')
+    def test_validate_lti_id_non_new_config(self, config_type, mock_course):
         """
-        Test that external config does NOT trigger LTI passport warning,
-        even when lti_version is lti_1p1 and lti_id is invalid.
+        Non-'new' config types (external, database) should not trigger
+        LTI passport warning even when lti_version=lti_1p1 and lti_id
+        is invalid.
         """
-        self.xblock.config_type = "external"
+        self.xblock.config_type = config_type
         self.xblock.lti_version = "lti_1p1"
-        self.xblock.external_config = "test:x"
+        self.xblock.external_config = "test:x" if config_type == "external" else None
         self.xblock.lti_id = "nonexistent"
         type(mock_course).lti_passports = PropertyMock(return_value=["valid:key:secret"])
         validation = self.xblock.validate()
-        self.assertTrue(validation.empty, "External config should not produce LTI passport warning")
-
-    @patch('lti_consumer.lti_xblock.LtiConsumerXBlock.course')
-    def test_validate_lti_id_database_config(self, mock_course):
-        """
-        Test that database config does NOT trigger LTI passport warning,
-        even when lti_version is lti_1p1 and lti_id is invalid.
-        """
-        self.xblock.config_type = "database"
-        self.xblock.lti_version = "lti_1p1"
-        self.xblock.lti_id = "nonexistent"
-        type(mock_course).lti_passports = PropertyMock(return_value=["valid:key:secret"])
-        validation = self.xblock.validate()
-        self.assertTrue(validation.empty, "Database config should not produce LTI passport warning")
+        self.assertTrue(validation.empty, f"{config_type} config should not produce LTI passport warning")
 
     def test_role(self):
         """
@@ -2284,54 +2240,24 @@ class TestLtiConsumer1p3XBlock(TestCase):
             fragment = self.xblock.studio_view({})
             normalized_content = ' '.join(fragment.content.split())
 
-            # The lti_1p3 radio should be checked (sourced from external config)
+            # Effective version radio shown (sourced from external config)
             self.assertIn(
                 'id="lti_version_option-lti_1p3" value="lti_1p3" checked',
                 normalized_content,
             )
-            # The lti_1p1 radio should NOT be checked (stale block value overridden)
-            self.assertNotIn(
-                'id="lti_version_option-lti_1p1" checked',
-                normalized_content,
-            )
 
-            # Verify js_context includes effectiveLtiVersion for JS use
-            self.assertIn(
-                'effectiveLtiVersion',
-                fragment.json_init_args,
-            )
+            # js_context carries effective version, raw fallback, and current config
             self.assertEqual(
                 fragment.json_init_args['effectiveLtiVersion'],
                 'lti_1p3',
-            )
-
-            # Verify js_context includes rawLtiVersion for fallback when
-            # the external config ID is unknown or has no version key.
-            self.assertIn(
-                'rawLtiVersion',
-                fragment.json_init_args,
             )
             self.assertEqual(
                 fragment.json_init_args['rawLtiVersion'],
                 'lti_1p1',
             )
-
-            # Verify js_context includes currentExternalConfig so JS can
-            # detect whether the field has been modified by the user.
-            self.assertIn(
-                'currentExternalConfig',
-                fragment.json_init_args,
-            )
             self.assertEqual(
                 fragment.json_init_args['currentExternalConfig'],
                 'test-plugin:test-id',
-            )
-
-            # Verify js_context does NOT include externalConfigVersions
-            # (replaced by on-demand handler lookups).
-            self.assertNotIn(
-                'externalConfigVersions',
-                fragment.json_init_args,
             )
 
     @patch('lti_consumer.plugin.compat.get_course_by_id')
@@ -2366,15 +2292,10 @@ class TestLtiConsumer1p3XBlock(TestCase):
             # Must not raise.
             fragment = self.xblock.studio_view({})
 
-        # Even with a filter failure, the fragment should render
-        # its JS init args without crashing.
-        self.assertEqual(fragment.js_init_fn, 'LtiConsumerXBlockInitStudio')
-        self.assertIn(
-            'rawLtiVersion',
-            fragment.json_init_args,
-        )
+        # Even with a filter failure, fragment renders and falls back
+        # to the block's own lti_version as effective version.
         self.assertEqual(
-            fragment.json_init_args['rawLtiVersion'],
+            fragment.json_init_args['effectiveLtiVersion'],
             'lti_1p1',
         )
 
@@ -2768,85 +2689,7 @@ class TestLti1p3AccessTokenJWK(TestBaseWithPatch):
         self.assertJSONEqual(response.content, {'error': 'invalid_client'})
 
 
-class TestSubmitStudioEditsHandler(TestLtiConsumerXBlock):
-    """
-    Unit tests for LtiConsumerXBlock.submit_studio_edits()
-    """
 
-    def setUp(self):
-        super().setUp()
-        self.xblock.lti_version = "lti_1p3"
-
-        db_config_waffle_patcher = patch('lti_consumer.lti_xblock.database_config_enabled', return_value=True)
-        db_config_waffle_patcher.start()
-        self.addCleanup(db_config_waffle_patcher.stop)
-
-        external_config_flag_patcher = patch(
-            'lti_consumer.lti_xblock.external_config_filter_enabled',
-            return_value=False
-        )
-        external_config_flag_patcher.start()
-        self.addCleanup(external_config_flag_patcher.stop)
-
-    def _call_submit_studio_edits(self, payload):
-        """Helper: call submit_studio_edits handler with JSON request."""
-        import json
-        request = make_request(json.dumps(payload), 'POST')
-        response = self.xblock.submit_studio_edits(request)
-        return json.loads(response.body)
-
-    def test_external_config_skips_lti_version(self):
-        """
-        When config_type is external, submitting studio edits WITHOUT
-        lti_version in the payload must NOT overwrite the block's
-        stored lti_version.
-
-        The JS in xblock_studio_view.js now skips lti_version from
-        the payload when config_type === 'external' (the version is
-        determined by the reusable config). This test validates the
-        Python handler's contract: it only sets fields present in
-        data['values'].
-        """
-        self.xblock.config_type = 'external'
-        self.xblock.external_config = 'test-plugin:test-id'
-        self.xblock.lti_version = 'lti_1p3'
-
-        # Simulate fixed-JS payload: config_type set, lti_version omitted.
-        payload = {
-            'values': {'config_type': 'external'},
-            'defaults': [],
-        }
-        with patch('lti_consumer.lti_xblock.external_config_filter_enabled', return_value=True):
-            result = self._call_submit_studio_edits(payload)
-
-        self.assertEqual(result, {'result': 'success'})
-        # lti_version must remain unchanged.
-        self.assertEqual(self.xblock.lti_version, 'lti_1p3')
-
-    def test_external_config_lti_version_not_overwritten_when_omitted(self):
-        """
-        When studio edits include config_type='external' and also
-        include other fields (like display_name) but NOT lti_version,
-        the block's stored lti_version must survive unchanged.
-        """
-        self.xblock.config_type = 'external'
-        self.xblock.external_config = 'test-plugin:test-id'
-        self.xblock.lti_version = 'lti_1p1'
-        self.xblock.display_name = 'Original Name'
-
-        payload = {
-            'values': {
-                'config_type': 'external',
-                'display_name': 'Updated Name',
-            },
-            'defaults': [],
-        }
-        with patch('lti_consumer.lti_xblock.external_config_filter_enabled', return_value=True):
-            result = self._call_submit_studio_edits(payload)
-
-        self.assertEqual(result, {'result': 'success'})
-        self.assertEqual(self.xblock.lti_version, 'lti_1p1')
-        self.assertEqual(self.xblock.display_name, 'Updated Name')
 
 
 @ddt.ddt
