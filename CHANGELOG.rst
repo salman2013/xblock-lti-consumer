@@ -16,6 +16,12 @@ Please See the `releases tab <https://github.com/openedx/xblock-lti-consumer/rel
 Unreleased
 ----------
 
+11.3.0 - 2026-05-29
+--------------------
+* Sync effective LTI version from external reusable configurations throughout XBlock runtime paths and Studio.
+* Hide LTI version selection in Studio for external and database-backed configurations to avoid stale version mismatches.
+* Show or hide LTI launch URL fields in Studio based on version resolved from external configuration.
+
 11.2.0 - 2026-04-30
 --------------------
 * Replace the flat Studio editor with a multi-step wizard (Setup → Advantage Settings → Review Options).
