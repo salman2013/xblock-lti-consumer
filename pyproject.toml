@@ -1,0 +1,116 @@
+[build-system]
+requires = ["setuptools>=64", "setuptools-scm>=8.0"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "lti-consumer-xblock"
+dynamic = ["version"]
+description = "This XBlock implements the consumer side of the LTI specification."
+readme = "README.rst"
+license = "AGPL-3.0"
+license-files = ["LICENSE"]
+authors = [
+    {name = "Open edX project", email = "oscm@edx.org"},
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Framework :: Django",
+    "Framework :: Django :: 4.2",
+    "Framework :: Django :: 5.2",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: GNU Affero General Public License v3",
+    "Natural Language :: English",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+]
+requires-python = ">=3.12"
+dependencies = [
+    "attrs",
+    "lxml",
+    "bleach>=6.0.0",
+    "django>=4.2",
+    "oauthlib",
+    "mako",
+    "lazy",
+    "XBlock",
+    "pyjwt",
+    "pycryptodomex",
+    "edx-opaque-keys[django]",
+    "edx-ccx-keys",
+    "django-filter",
+    "jsonfield",
+    "django-config-models",
+    "openedx-filters",
+    "django-statici18n",
+    "openedx-events",
+]
+
+[project.urls]
+Homepage = "https://github.com/openedx/xblock-lti-consumer"
+
+[project.entry-points."xblock.v1"]
+lti_consumer = "lti_consumer.lti_xblock:LtiConsumerXBlock"
+
+[project.entry-points."lms.djangoapp"]
+lti_consumer = "lti_consumer.apps:LTIConsumerApp"
+
+[project.entry-points."cms.djangoapp"]
+lti_consumer = "lti_consumer.apps:LTIConsumerApp"
+
+[tool.setuptools_scm]
+version_scheme = "only-version"
+local_scheme = "no-local-version"
+
+[tool.setuptools.packages.find]
+# Automatically discovers all packages
+
+[tool.setuptools.package-data]
+lti_consumer = ["static/**/*", "templates/**/*", "public/**/*", "translations/**/*"]
+
+[tool.setuptools.exclude-package-data]
+"*" = ["tests*", "*.tests*", "spec*", "*.spec*"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "I",      # isort
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "UP",     # pyupgrade
+    "DJ",     # flake8-django
+]
+ignore = [
+    "E501",   # line too long (handled by formatter)
+]
+
+[tool.ruff.lint.isort]
+known-third-party = ["django", "xblock"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.coverage.run]
+branch = true
+source = ["lti_consumer"]
+omit = ["*/tests/*", "*/migrations/*", "*/__pycache__/*", "*/settings.py", "*/urls.py"]
+
+[tool.coverage.report]
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
