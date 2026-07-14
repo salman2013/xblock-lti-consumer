@@ -148,3 +148,12 @@ constraint-dependencies = []
 uv_constraints = [
     "urllib3<1.27,>=1.25.4",
 ]
+
+[tool.semantic_release]
+# Version is derived from git tags via setuptools-scm; PSR creates the tag,
+# and build_command uses SETUPTOOLS_SCM_PRETEND_VERSION to build with it.
+build_command = "python -m pip install --upgrade build && SETUPTOOLS_SCM_PRETEND_VERSION=$NEW_VERSION python -m build"
+# Prevent automatic 0.x → 1.0.0 bump; 1.x signals "first stable release" and
+# should be a deliberate choice, not triggered by a breaking-change commit.
+allow_zero_version = true
+major_on_zero = false
