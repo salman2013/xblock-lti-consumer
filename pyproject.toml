@@ -61,10 +61,10 @@ version_scheme = "only-version"
 local_scheme = "no-local-version"
 
 [tool.setuptools.packages.find]
-# Automatically discovers all packages
+where = ["src"]
 
 [tool.setuptools.package-data]
-lti_consumer = ["static/**/*", "templates/**/*", "public/**/*", "translations/**/*"]
+lti_consumer = ["static/**/*", "templates/**/*", "public/**/*", "conf/locale/**"]
 
 [tool.setuptools.exclude-package-data]
 "*" = ["tests*", "*.tests*", "spec*", "*.spec*"]

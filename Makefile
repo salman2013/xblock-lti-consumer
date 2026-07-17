@@ -10,11 +10,11 @@ install: ## Install dev dependencies via uv
 	uv sync --group dev
 
 compile-sass:  ## Compile the Sass assets
-	sass --no-cache --style compressed ./lti_consumer/static/sass/student.scss ./lti_consumer/static/css/student.css
+	sass --no-cache --style compressed ./src/lti_consumer/static/sass/student.scss ./src/lti_consumer/static/css/student.css
 
 quality:  ## Run the quality checks
-	pycodestyle lti_consumer
-	pylint --rcfile=pylintrc lti_consumer
+	pycodestyle src/lti_consumer
+	pylint --rcfile=pylintrc src/lti_consumer
 
 test:  ## Run the tests
 	mkdir -p var
@@ -32,7 +32,7 @@ upgrade: ## Update uv.lock and regenerate uv constraints
 
 ## Localization targets
 
-WORKING_DIR := lti_consumer
+WORKING_DIR := src/lti_consumer
 EXTRACT_DIR := $(WORKING_DIR)/conf/locale/en/LC_MESSAGES
 JS_COMPILE_DIR := $(WORKING_DIR)/public/js/translations
 EXTRACTED_DJANGO_PARTIAL := $(EXTRACT_DIR)/django-partial.po
