@@ -46,7 +46,7 @@ jobs:
         if: steps.release.outputs.released == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: v${{ steps.release.outputs.version }}
+          TAG: ${{ steps.release.outputs.tag }}
           RELEASE_NOTES: ${{ steps.release.outputs.release_notes }}
         run: |
           printf '%s' "$RELEASE_NOTES" > /tmp/release_notes.md
